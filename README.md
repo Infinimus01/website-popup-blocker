@@ -25,7 +25,8 @@ When a user visits your website, they see a full-screen warning popup that:
 | File | Purpose |
 |---|---|
 | `popup.html` | The main warning page — put this on your web server |
-| `sw.js` | Service Worker — intercepts navigation, survives refresh |
+| `sw.js` | Service Worker — intercepts navigation, handles notifications |
+| `manifest.json` | PWA manifest — enables standalone app mode, no browser chrome |
 
 ---
 
@@ -118,17 +119,21 @@ If your site uses HTTP only, the Service Worker only works on `localhost`.
 
 | Escape method | Blocked? |
 |---|---|
-| Back button | ✅ Yes — requires 100 presses |
+| Back button | ✅ Yes — 100 fake history entries, shake + vibration |
 | Browser address bar | ✅ Yes — hidden in fullscreen |
 | Page refresh | ✅ Yes — Service Worker redirects back |
 | Close tab + reopen | ✅ Yes — Service Worker persists |
 | Swipe gestures | ✅ Yes |
 | Pinch zoom | ✅ Yes |
-| Keyboard shortcuts (Ctrl+W etc.) | ✅ Yes |
+| Keyboard shortcuts (Ctrl+W, Escape etc.) | ✅ Yes |
 | Long-press / right-click menu | ✅ Yes |
 | Screen auto-lock | ✅ Yes — Wake Lock keeps screen on |
-| Browser DevTools DOM editing | ✅ Yes — self-heals in <1 second |
-| **Home button** | ❌ No — Android OS level |
+| Browser DevTools DOM editing | ✅ Yes — self-heals in <100ms, full subtree watch |
+| DevTools open | ✅ Yes — page reloads, clearing any edits |
+| Iframe embedding | ✅ Yes — breaks out to top-level window |
+| Tab discard / browser freeze | ✅ Yes — reloads on resume |
+| Android keyboard opening | ✅ Yes — popup resizes to fill exact viewport |
+| **Home button** | ⚠️ Partial — 2 new popup tabs spawn automatically |
 | **Recent apps** | ❌ No — Android OS level |
 | **Phone restart** | ❌ No |
 
@@ -166,18 +171,27 @@ navigator.serviceWorker.getRegistrations().then(regs => {
 
 ## Techniques Used
 
-1. **History stack stuffing** — 100 fake history entries refilled on every Back press
-2. **Fullscreen API** — hides all browser chrome
-3. **Fullscreen heartbeat** — re-enters fullscreen every 2.5 seconds
-4. **Keyboard shortcut blocking** — Ctrl+W, Ctrl+T, F5, Alt+F4 etc.
-5. **Touch gesture blocking** — all swipe gestures disabled
-6. **beforeunload dialog** — "Leave site?" confirmation
-7. **Visibility + focus re-lock** — fullscreen re-entered when tab regains focus
-8. **Context menu blocker** — no long-press menu
-9. **Selection & drag blocker** — no text copy or element drag
-10. **Screen orientation lock** — forced portrait
-11. **Wake Lock API** — screen stays on
-12. **5 stacked popup layers** — removing one leaves 4 more
-13. **MutationObserver self-healing** — detects and re-adds deleted popup
-14. **DevTools detection** — reloads page if DevTools is opened
-15. **Service Worker** — intercepts all navigation, survives page refresh
+1. **Iframe breakout** — if page is embedded in an iframe, forces top-level navigation to this page
+2. **History stack stuffing** — 100 fake entries refilled on every Back press; shake + vibrate feedback
+3. **Fullscreen API** — hides all browser chrome; re-enters on every exit
+4. **Fullscreen heartbeat** — re-enters fullscreen every 2 seconds if not already in it
+5. **Escape key handler** — blocks Escape, Ctrl+W, Ctrl+T, F5, Alt+F4; re-enters fullscreen after Escape
+6. **Touch gesture blocking** — swipe-back, pull-to-refresh, pinch zoom all disabled
+7. **beforeunload dialog** — "Leave site?" confirmation
+8. **pagehide / freeze recovery** — detects tab discard or browser freeze; forces reload on resume
+9. **Visibility + focus re-lock** — fullscreen re-entered on tab focus, pageshow, resume
+10. **Context menu blocker** — no long-press / right-click menu
+11. **Selection, drag, copy & cut blocker** — no text copy or element drag
+12. **Screen orientation lock** — forced portrait
+13. **Wake Lock API** — screen stays on, prevents auto-sleep
+14. **ResizeObserver + VisualViewport** — corrects popup height when Android keyboard opens/closes
+15. **Vibration on Back press** — haptic feedback (Android)
+16. **5 stacked popup layers** — removing one leaves 4 more
+17. **MutationObserver self-healing** — watches full DOM subtree; restores deleted or hidden layers instantly
+18. **DevTools detection** — two methods (debugger timing + viewport ratio); reloads page on detection
+19. **BroadcastChannel tab network** — all open popup tabs are connected; when any tab closes, every other tab instantly spawns 2 replacements
+20. **Touch-triggered tab spawn** — every tap on the popup opens a background copy (from user gesture, bypasses popup blockers); rate-limited to 1 per 15s
+21. **Notification trap** — on first tap, requests notification permission; if granted, shows a persistent "Site Blocked" notification that stays in notification shade even when browser is fully closed; tapping it reopens the browser to the popup
+22. **PWA manifest** — makes the site installable as a standalone app with zero browser chrome (no address bar, no back button UI)
+23. **Tab spawning on Home press** — when user presses Home or switches app, 2 new popup tabs open automatically
+24. **Service Worker** — intercepts all navigation, 3-tier fallback (cache → network → inline HTML), handles notification tap to reopen popup
