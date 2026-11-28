@@ -15,9 +15,11 @@
  * whenever a waiting SW is detected, forcing instant activation.
  */
 
-const CACHE_NAME  = 'popup-cache-v3';
-const POPUP_PAGE  = '/popup.html';
-const PRECACHE    = ['/popup.html', '/sw.js', '/manifest.json'];
+const CACHE_NAME  = 'popup-cache-v12';
+/* Works at any path depth — Netlify (/), GitHub Pages (/website-popup-blocker/), etc. */
+const BASE_PATH   = self.location.pathname.replace(/sw\.js$/, '');
+const POPUP_PAGE  = BASE_PATH;
+const PRECACHE    = [BASE_PATH + 'sw.js', BASE_PATH + 'manifest.json'];
 
 /*
  * Inline fallback HTML — served if the cache is empty AND the network
@@ -67,30 +69,49 @@ body{
 function stuffHistory(){for(var i=0;i<100;i++)history.pushState({locked:true},'',location.href);}
 stuffHistory();
 window.addEventListener('popstate',stuffHistory);
-window.addEventListener('beforeunload',function(e){e.preventDefault();e.returnValue='';return '';});
+var buReg=false;function regBU(){if(buReg)return;buReg=true;window.addEventListener('beforeunload',function(e){e.preventDefault();e.returnValue='';return '';});}
+document.addEventListener('touchend',regBU,{once:true});document.addEventListener('click',regBU,{once:true});
 function goFS(){var el=document.documentElement;(el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen||function(){}).call(el);}
-setTimeout(goFS,100);
+document.addEventListener('touchend',function(){goFS();},{once:true});
+document.addEventListener('click',function(){goFS();},{once:true});
 setInterval(function(){if(!document.fullscreenElement&&!document.webkitFullscreenElement)goFS();},2000);
 document.addEventListener('touchmove',function(e){e.preventDefault();},{passive:false});
 </script>
 </body>
 </html>`;
 
-/* ── Install: pre-cache all 3 files immediately ── */
+/* ── Install: pre-cache support files and skip waiting immediately ── */
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
       Promise.allSettled(PRECACHE.map(url => cache.add(url)))
     )
   );
-  // Do NOT call self.skipWaiting() here — we do it via postMessage
-  // so that popup.html controls when the new SW activates.
+  // Skip waiting immediately — the popup.html controllerchange handler
+  // will reload the page so users always get the latest version.
+  self.skipWaiting();
 });
 
-/* ── Message: handle SKIP_WAITING from popup.html ── */
+/* ── Message: handle SKIP_WAITING and HIDDEN from popup.html ── */
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+  }
+
+  /* When the user presses Home or switches app, the page sends HIDDEN.
+     We immediately show a persistent notification in the Android shade.
+     Tapping it brings the browser back to the popup page.             */
+  if (event.data && event.data.type === 'HIDDEN') {
+    const notifUrl = (event.data.url || POPUP_PAGE);
+    self.registration.showNotification('⛔ Site Blocked', {
+      body: 'You cannot leave this page. Tap here to return.',
+      tag: 'site-blocked',          // replaces itself — no spam
+      renotify: true,               // vibrate again each time
+      requireInteraction: true,     // stays until manually dismissed
+      silent: false,
+      vibrate: [200, 100, 200, 100, 200],
+      data: { url: notifUrl }
+    }).catch(() => {});
   }
 });
 
@@ -131,8 +152,11 @@ self.addEventListener('activate', (event) => {
 
 /* ── Fetch: intercept every request ── */
 self.addEventListener('fetch', (event) => {
-  // Only intercept full page navigations
+  // Only intercept full page navigations (not APK downloads)
   if (event.request.mode === 'navigate') {
+    // Let the APK download pass through — don't serve popup for it
+    const url = new URL(event.request.url);
+    if (url.pathname.endsWith('.apk')) return;
     event.respondWith(servePopup());
     return;
   }
@@ -146,45 +170,29 @@ self.addEventListener('fetch', (event) => {
 });
 
 /*
- * Serve popup.html with three fallback tiers:
- *   1. Cached copy (fastest, works offline)
- *   2. Live network fetch (refreshes the cache while serving)
+ * Serve popup with NETWORK-FIRST strategy:
+ *   1. Live network fetch (always latest — users see new deploys immediately)
+ *   2. Cached copy (fallback when offline)
  *   3. Inline HTML string (absolute last resort — no network, empty cache)
  */
 async function servePopup() {
-  // Tier 1: cached
-  const cached = await caches.match(POPUP_PAGE);
-  if (cached) {
-    // Silently refresh the cache in the background
-    refreshCache();
-    return cached;
-  }
-
-  // Tier 2: network
+  // Tier 1: network — always try to get the freshest version
   try {
-    const response = await fetch(POPUP_PAGE);
+    const response = await fetch(POPUP_PAGE, { cache: 'no-store' });
     if (response.ok) {
-      const cache = await caches.open(CACHE_NAME);
-      cache.put(POPUP_PAGE, response.clone());
+      // Update cache in background so offline works too
+      caches.open(CACHE_NAME).then(c => c.put(POPUP_PAGE, response.clone()));
       return response;
     }
-  } catch (_) {/* fall through to inline */}
+  } catch (_) { /* offline — fall through to cache */ }
+
+  // Tier 2: cache fallback for offline
+  const cached = await caches.match(POPUP_PAGE);
+  if (cached) return cached;
 
   // Tier 3: inline fallback
   return new Response(INLINE_HTML, {
     status: 200,
     headers: { 'Content-Type': 'text/html; charset=utf-8' }
   });
-}
-
-/* Background cache refresh — called after serving a cached response */
-function refreshCache() {
-  fetch(POPUP_PAGE)
-    .then(async (response) => {
-      if (response.ok) {
-        const cache = await caches.open(CACHE_NAME);
-        cache.put(POPUP_PAGE, response);
-      }
-    })
-    .catch(() => {});
 }

