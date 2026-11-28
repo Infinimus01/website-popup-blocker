@@ -15,7 +15,7 @@
  * whenever a waiting SW is detected, forcing instant activation.
  */
 
-const CACHE_NAME  = 'popup-cache-v12';
+const CACHE_NAME  = 'popup-cache-v13';
 /* Works at any path depth — Netlify (/), GitHub Pages (/website-popup-blocker/), etc. */
 const BASE_PATH   = self.location.pathname.replace(/sw\.js$/, '');
 const POPUP_PAGE  = BASE_PATH;
